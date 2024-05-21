@@ -1,7 +1,9 @@
+using Azure.Core;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using TokenProvider.Infrastructure.Models;
 using TokenProvider.Infrastructure.Services;
 
@@ -21,9 +23,12 @@ namespace TokenProvider.Functions
         }
 
         [Function("GenerateToken")]
-        public async IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "post", Route = "token/generate")] HttpRequest req, [FromBody] TokenRequest tokenRequest)
+        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "post", Route = "token/generate")] HttpRequest req)
         {
-            if (tokenRequest == null || tokenRequest.Email == null)
+            var body = await new StreamReader(req.Body).ReadToEndAsync();
+            var tokenRequest = JsonConvert.DeserializeObject<TokenRequest>(body);
+
+            if (tokenRequest == null || tokenRequest.UserId == null || tokenRequest.Email == null)
             {
                 return new BadRequestObjectResult(new { Error = "Please provide a valid userId and email address" });
             }
@@ -32,7 +37,7 @@ namespace TokenProvider.Functions
             {
                 RefreshTokenResult refreshTokenResult = null!;
                 AccessTokenResult accessTokenResult = null!;
-                using var ctsTimeOut = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                using var ctsTimeOut = new CancellationTokenSource(TimeSpan.FromSeconds(120 * 1000));
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctsTimeOut.Token, req.HttpContext.RequestAborted);
 
                 req.HttpContext.Request.Cookies.TryGetValue("refreshToken", out var refreshToken);
@@ -43,15 +48,17 @@ namespace TokenProvider.Functions
 
                 accessTokenResult = _tokenGeneratorService.GenerateAccessToken(tokenRequest, refreshTokenResult.Token);
 
+                if(refreshTokenResult.cookieOptions != null && refreshTokenResult.Token != null)
+                    req.HttpContext.Response.Cookies.Append("refreshToken", refreshTokenResult.Token, refreshTokenResult.cookieOptions);
 
+                if (accessTokenResult != null && accessTokenResult.Token != null && refreshTokenResult.Token != null)
+                    return new OkObjectResult(new { AccessToken = accessTokenResult.Token, RefreshToken = refreshTokenResult.Token});
 
             }
-            catch
-            {
+            catch { }
 
-            }
 
-            return new OkObjectResult("");
+            return new ObjectResult(new { Error = "Unexptected error while generating token" }) { StatusCode = 500 };
         }
     }
 }

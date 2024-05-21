@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34728.123
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TokenProvider", "TokenProvider\TokenProvider.csproj", "{64F73A42-2CE1-43C1-9026-5D4C99AE1F0D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TokenProvider", "TokenProvider\TokenProvider.csproj", "{64F73A42-2CE1-43C1-9026-5D4C99AE1F0D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TokenProvider.Infrastructure", "TokenProvider.Infrastructure\TokenProvider.Infrastructure.csproj", "{B59C986F-5B41-4276-87E5-E599D34A0E37}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TokenProvider.Infrastructure", "TokenProvider.Infrastructure\TokenProvider.Infrastructure.csproj", "{B59C986F-5B41-4276-87E5-E599D34A0E37}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

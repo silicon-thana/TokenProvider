@@ -25,29 +25,40 @@ public class RefreshTokenService : IRefreshTokenService
     #region GetRefreshTokenAsync
     public async Task<RefreshTokenResult> GetRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
     {
-        await using var context = _dbContextFactory.CreateDbContext();
         RefreshTokenResult refreshTokenResult = null!;
-        var refreshTokenEntity = await context.RefreshTokens.FirstOrDefaultAsync(x => x.RefreshToken == refreshToken && x.ExpiryDate > DateTime.Now, cancellationToken);
-        if (refreshTokenEntity != null)
+        try
         {
-            refreshTokenResult = new RefreshTokenResult()
+            await using var context = _dbContextFactory.CreateDbContext();
+            var refreshTokenEntity = await context.RefreshTokens.FirstOrDefaultAsync(x => x.RefreshToken == refreshToken && x.ExpiryDate > DateTime.Now, cancellationToken);
+            if (refreshTokenEntity != null)
             {
-                StatusCode = (int)HttpStatusCode.OK,
-                Token = refreshTokenEntity.RefreshToken,
-                ExpiryDate = refreshTokenEntity.ExpiryDate,
-            };
-        }
-        else
-        {
-            refreshTokenResult = new RefreshTokenResult()
+                refreshTokenResult = new RefreshTokenResult()
+                {
+                    StatusCode = (int)HttpStatusCode.OK,
+                    Token = refreshTokenEntity.RefreshToken,
+                    ExpiryDate = refreshTokenEntity.ExpiryDate,
+                };
+            }
+            else
             {
-                StatusCode = (int)HttpStatusCode.NotFound,
-                Error = "RefreshToken not found or expired"
-            };
-        }
+                refreshTokenResult = new RefreshTokenResult()
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound,
+                    Error = "RefreshToken not found or expired"
+                };
+            }
 
+
+        }
+        catch (Exception ex)
+        {
+            refreshTokenResult = new RefreshTokenResult()
+            {
+                StatusCode = (int)HttpStatusCode.InternalServerError,
+                Error = ex.Message
+            };
+        }
         return refreshTokenResult;
-
     }
     #endregion
 

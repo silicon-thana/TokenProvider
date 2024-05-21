@@ -11,7 +11,7 @@ namespace TokenProvider.Infrastructure.Services;
 public interface ITokenGeneratorService
 {
     Task<RefreshTokenResult> GenerateRefreshTokenAsync(string userId, CancellationToken cancellationToken);
-    AccessTokenResult GenerateAccessToken(TokenRequest tokenRequest, string refreshToken);
+    AccessTokenResult GenerateAccessToken(TokenRequest tokenRequest, string? refreshToken);
 
 
 }
@@ -39,7 +39,7 @@ public class TokenGeneratorService : ITokenGeneratorService
 
             var token = GenerateJwtToken(new ClaimsIdentity(claims), DateTime.Now.AddMinutes(5));
             if (token == null)
-                return new RefreshTokenResult { StatusCode = (int)HttpStatusCode.InternalServerError, Error = "Unexptected error while generting token" };
+                return new RefreshTokenResult { StatusCode = (int)HttpStatusCode.InternalServerError, Error = "Unexptected error while generating token" };
 
             var cookieOPtion = CookieGeneratorService.GenerateCookie(DateTimeOffset.UtcNow.AddDays(7));
             if (cookieOPtion == null)
@@ -65,15 +65,34 @@ public class TokenGeneratorService : ITokenGeneratorService
     #endregion
 
     #region GenerateAccessToken
-    public AccessTokenResult GenerateAccessToken(TokenRequest tokenRequest, string refreshToken)
+    public AccessTokenResult GenerateAccessToken(TokenRequest tokenRequest, string? refreshToken)
     {
         try
         {
+            if (string.IsNullOrEmpty(tokenRequest.UserId) || string.IsNullOrEmpty(tokenRequest.Email))
+                return new AccessTokenResult { StatusCode = (int)HttpStatusCode.BadRequest, Error = "Invalid req body. Parameters UserID and Email must be provided" };
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, tokenRequest.UserId),
+                new Claim(ClaimTypes.Name, tokenRequest.Email),
+                new Claim(ClaimTypes.Email, tokenRequest.Email),
+            };
+
+            if (!string.IsNullOrEmpty(refreshToken))
+                claims = [.. claims, new Claim("refreshToken", refreshToken)];
+
+            var token = GenerateJwtToken(new ClaimsIdentity(claims), DateTime.Now.AddMinutes(5));
+            if (token == null)
+                return new AccessTokenResult { StatusCode = (int)HttpStatusCode.InternalServerError, Error = "Unexptected error while generating token" };
+
+            return new AccessTokenResult { StatusCode = (int)HttpStatusCode.OK, Token = token };
+
 
         }
         catch(Exception ex) 
         {
-
+            return new AccessTokenResult { StatusCode = (int)HttpStatusCode.InternalServerError, Error = ex.Message };
         }
     }
     #endregion
@@ -89,7 +108,7 @@ public class TokenGeneratorService : ITokenGeneratorService
             Subject = claims,
             Expires = expires,
             Issuer = Environment.GetEnvironmentVariable("TOKEN_ISSUER"),
-            Audience = Environment.GetEnvironmentVariable("AUDIENCE"),
+            Audience = Environment.GetEnvironmentVariable("TOKEN_AUDIENCE"),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("TOKEN_SECURITYKEY")!)), SecurityAlgorithms.HmacSha256Signature)
         };
 
